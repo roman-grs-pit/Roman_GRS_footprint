@@ -1,0 +1,70 @@
+[project]
+name = "my_package"
+authors = [{name = "Example Author", email = "author@example.com"}]
+description = "An example package"
+readme = "README.md"
+license = { file = 'LICENSE' }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.20",
+]
+dynamic = ['version']
+
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "sphinx-automodapi",
+    "numpydoc",
+    "furo",
+]
+test = [
+    "pytest",
+    "pytest-doctestplus",
+    "flake8",
+    "flake8-pyproject",
+    "codecov",
+    "pytest-cov",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/roman-grs-pit"
+"Bug Tracker" = "https://github.com/roman-grs-pit/roman-grs-pit-python-template/issues"
+"Source Code" = "https://github.com/roman-grs-pit/roman-grs-pit-python-template"
+
+[build-system]
+requires = [
+    "setuptools>=60",
+    "setuptools_scm>=8.0",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "src/my_package/_version.py"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 130
+exclude = [
+    'docs',
+    '.tox',
+    '.eggs',
+    'build',
+    '*_version.py',
+]
+
+[tool.ruff.lint]
+select = ['E', 'F', 'W']
+
+[tool.coverage.run]
+omit = [
+    "src/**/_version.py",
+]
+
