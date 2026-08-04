@@ -5,7 +5,7 @@ optmod_config = os.getenv('ROMAN_GDPS_OPTICAL_MODEL_CONFIG', None)
 if optmod_config is None:
     raise ValueError(
         "ROMAN_GDPS_OPTICAL_MODEL_CONFIG environment variable is not set.")
-optmod = RomanOpticalModel(config=optmod_config)
+optmod = RomanOpticalModel(config_file=optmod_config)
 
 
 def test_foot(xfpa, yfpa, min_pix=0, max_pix=4088, det=1, min_lam_4foot=1., max_lam_4foot=1.93):
