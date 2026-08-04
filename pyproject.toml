@@ -1,6 +1,6 @@
 [project]
-name = "my_package"
-authors = [{name = "Example Author", email = "author@example.com"}]
+name = "rstgrs_footprint"
+authors = [{name = "Roman GRS PIT", email = "author@example.com"}]
 description = "An example package"
 readme = "README.md"
 license = { file = 'LICENSE' }
@@ -33,8 +33,8 @@ test = [
 
 [project.urls]
 "Homepage" = "https://github.com/roman-grs-pit"
-"Bug Tracker" = "https://github.com/roman-grs-pit/roman-grs-pit-python-template/issues"
-"Source Code" = "https://github.com/roman-grs-pit/roman-grs-pit-python-template"
+"Bug Tracker" = "https://github.com/roman-grs-pit/Roman_GRS_footprint/issues"
+"Source Code" = "https://github.com/roman-grs-pit/Roman_GRS_footprint"
 
 [build-system]
 requires = [
@@ -45,7 +45,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-write_to = "src/my_package/_version.py"
+write_to = "src/rstgrs_footprint/_version.py"
 
 [tool.setuptools.packages.find]
 where = ["src"]
