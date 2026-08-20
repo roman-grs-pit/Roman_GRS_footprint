@@ -14,7 +14,7 @@ srun -N 1 -C cpu -t 02:00:00 --qos interactive --account m4943 python $github_di
 exposure ID and detector number should be added to the output for a file containing each observation of each point, but this is not implemented yet
 A bigger piece would be to get all of the pixel information along each trace. This would be a bit of work and hard to make fast.
 '''
-from rstgrs_footprint import sky_coords, test_det
+from rstgrs_footprint import sky_coords, trace_on_det
 import logging
 import argparse
 from astropy.table import Table, unique
