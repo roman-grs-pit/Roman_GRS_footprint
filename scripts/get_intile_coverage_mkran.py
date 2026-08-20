@@ -9,23 +9,20 @@ Example run, TBC, some details are still NERSC specific,:
 module load conda
 conda activate /global/common/software/m4943/grizli1
 export github_dir=/global/common/software/m4943/grizli0/
-export PYTHONPATH=$PYTHONPATH:$github_dir/observing-program/py/:\
-$github_dir/optical_model_tools/py/:$github_dir/GDPS_optical_model/
-export ROMAN_GDPS_OPTICAL_MODEL_CONFIG=$github_dir/GDPS_optical_model/\
-roman_gdps_optical_model/config/Roman_grism_OpticalModel_v0.8.yaml
-srun -N 1 -C cpu -t 02:00:00 --qos interactive --account m4943 python \
-$github_dir/observing-program/scripts/get_intile_coverage_inDESIran.py \
---nran 1 --ramin 49 --ramax 51 --decmin -11 --decmax -9
+export PYTHONPATH to include observing-program/py,
+optical_model_tools/py, and GDPS_optical_model/
+export ROMAN_GDPS_OPTICAL_MODEL_CONFIG to the Roman_grism_OpticalModel_v0.8
+yaml file under GDPS_optical_model/roman_gdps_optical_model/config/
+run get_intile_coverage_inDESIran.py with --nran 1 --ramin 49 --ramax 51
+--decmin -11 --decmax -9
 to run the full survey
-srun -N 1 -C cpu -t 02:00:00 --qos interactive --account m4943 python \
-$github_dir/observing-program/scripts/get_intile_coverage_inDESIran.py \
---fullsurvey
+run get_intile_coverage_inDESIran.py with --fullsurvey
 exposure ID and detector number should be added to the output for a file
 containing each observation of each point, but this is not implemented yet
 A bigger piece would be to get all of the pixel information along each trace. This would be a bit of work and hard to make fast.
 """
 
-from rstgrs_footprint import sky_coords, trace_on_det as test_det
+from rstgrs_footprint import sky_coords, trace_on_det
 import logging
 import argparse
 from astropy.table import Table, unique
@@ -62,7 +59,7 @@ parser.add_argument("--chunksize", help="objects to process per chunk", default=
 parser.add_argument(
     "--tilefile",
     help="full path to tile file",
-    default=os.environ["github_dir"] + "Roman_GRS_footprint/data/994-hlwas-Feb26_fixed_orients.sim.ecsv",
+    default=None,
 )
 parser.add_argument("--nran", help="number of randoms to use", default=10000, type=int)
 parser.add_argument("--outroot", help="root directory for output", default=os.getcwd())
@@ -81,13 +78,23 @@ parser.add_argument(
     default="medium",
     choices=["medium", "xmm", "cosmos"],
 )
-parser.add_argument("--fullsurvey", help="If set, override any ra,dec bounds and simulate the whole survey", action="store_true")
+parser.add_argument(
+    "--fullsurvey",
+    help="If set, override any ra,dec bounds and simulate the whole survey",
+    action="store_true",
+)
 parser.add_argument("--palist", help="list of PA values for repeated RA,DEC", default=None, type=str, nargs="*")
 parser.add_argument("--radiff", help="diff in RA for the repeated values", default=0, type=float)
 parser.add_argument("--decdiff", help="diff in DEC for the repeated values", default=0, type=float)
 parser.add_argument("--decpa", help="add diff in DEC for the flipped roll angles", default=0, type=float)
 parser.add_argument("--par", help="whether to use the parallel processing", action="store_true")
 args = parser.parse_args()
+
+if args.tilefile is None:
+    github_dir = os.environ.get("github_dir")
+    if github_dir is None:
+        parser.error("--tilefile is required when github_dir is not set")
+    args.tilefile = os.path.join(github_dir, "Roman_GRS_footprint", "data", "994-hlwas-Feb26_fixed_orients.sim.ecsv")
 
 if args.fullsurvey:
     logger.info("fullsurvey flag is set, will ignore any ra,dec bounds and simulate the whole survey")
@@ -210,7 +217,6 @@ expid_re = []
 tottl = len(tls)
 
 Nchunk = len(data) // args.chunksize + 1
-Nchunk = int(Nchunk)
 logger.info("will go through " + str(Nchunk) + " chunks")
 for chunk in range(0, Nchunk):
     rand_indx = []
@@ -253,7 +259,7 @@ for chunk in range(0, Nchunk):
             xfpa, yfpa = sky_coords.tangent_plane(np.array(ral_tl), np.array(decl_tl), ra0, dec0, pa)
 
             for det in dets:
-                xpixl, ypixl = test_det.optmod.coords.convert_fpa_to_sca(xfpa, yfpa, sca=det)
+                xpixl, ypixl = trace_on_det.optmod.coords.convert_fpa_to_sca(xfpa, yfpa, sca=det)
                 selp = xpixl > -1000
                 selp &= xpixl < 5088
                 selp &= ypixl > -1000
@@ -263,7 +269,7 @@ for chunk in range(0, Nchunk):
                     yfpai = yfpa[selp][i]
                     test = 0
 
-                    test = test_det.test_foot(xfpai, yfpai, det=det, min_lam_4foot=minwav, max_lam_4foot=maxwav)
+                    test = trace_on_det.test_foot(xfpai, yfpai, det=det, min_lam_4foot=minwav, max_lam_4foot=maxwav)
                     if test == 1:
                         idx_det = ran_indices_tl[selp][i]
                         idx.append(idx_det)
