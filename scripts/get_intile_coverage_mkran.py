@@ -1,37 +1,26 @@
 '''
 Given some input file (assumed to be fits) and input tiling file (in ecsv format), determine the number of times each
 ra,dec in the input will be observed by the grism with the assumed wavelength coverage
-Example run, adding info to DESI all sky randoms:
+requires that the optical model be installed and the environment variable ROMAN_GDPS_OPTICAL_MODEL_CONFIG be set to the path of the yaml config file for the optical model
+Example run, TBC, some details are still NERSC specific,:
 module load conda
 conda activate /global/common/software/m4943/grizli1
 export github_dir=/global/common/software/m4943/grizli0/
 export PYTHONPATH=$PYTHONPATH:$github_dir/observing-program/py/:$github_dir/optical_model_tools/py/:$github_dir/GDPS_optical_model/
+export ROMAN_GDPS_OPTICAL_MODEL_CONFIG=$github_dir/GDPS_optical_model/roman_gdps_optical_model/config/Roman_grism_OpticalModel_v0.8.yaml
 srun -N 1 -C cpu -t 02:00:00 --qos interactive --account m4943 python $github_dir/observing-program/scripts/get_intile_coverage_inDESIran.py --nran 1 --ramin 49 --ramax 51 --decmin -11 --decmax -9
 to run the full survey 
 srun -N 1 -C cpu -t 02:00:00 --qos interactive --account m4943 python $github_dir/observing-program/scripts/get_intile_coverage_inDESIran.py --fullsurvey
 exposure ID and detector number should be added to the output for a file containing each observation of each point, but this is not implemented yet
 A bigger piece would be to get all of the pixel information along each trace. This would be a bit of work and hard to make fast.
 '''
-from optical_model_tools.v0_8 import test_det as test_det_v08
-from optical_model_tools.v0_6 import test_det as test_det_v06
-from optical_model_tools.v0_6 import optical_model as opmod_v06
-from optical_model_tools.v0_8 import optical_model as opmod_v08
-from optical_model_tools import sky_coords
-import roman_gdps_optical_model.optical_model as gdps_optical_model
+from rstgrs_footprint import sky_coords, test_det
 import logging
 import argparse
-import importlib
-from astropy.coordinates import SkyCoord
-from astropy import units as u
-from astropy.wcs import WCS
 from astropy.table import Table, unique
-from astropy.io import fits
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import glob
-from pysiaf.utils.rotations import attitude
-import footprintutils as fp
 import os
 import sys
 from time import time
@@ -57,42 +46,23 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-#  should change to make this an environment variable
-code_data_dir = '/global/common/software/m4943/grizli0/observing-program/data/'
-
-optmod06 = opmod_v06.RomanOpticalModel()
-optmod08 = opmod_v08.RomanOpticalModel()
-optmod_gdps = gdps_optical_model.RomanOpticalModel(
-    os.environ['github_dir']+'/GDPS_optical_model/roman_gdps_optical_model/config/Roman_grism_OpticalModel_v0.8.yaml')
-
-
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--wficen", help="if y, positions are detector center", default='y')
-parser.add_argument(
-    "--optmodver", help="version of optical model to use", default='gdps', choices=['v06', 'v08', 'gdps'])
-parser.add_argument(
-    "--coords_ver", help="version of ra,dec -> fpa transformation to use", default='tan', choices=['gdps', 'tan'])
-
 parser.add_argument(
     "--wavmin", help="set minimum wavelength, if not None", default=None)
 parser.add_argument(
     "--wavmax", help="set maximum wavelength, if not None", default=None)
 parser.add_argument(
     "--chunksize", help="objects to process per chunk", default=10000000, type=int)
-parser.add_argument("--racol", help="column name for RA", default='RA')
-parser.add_argument("--deccol", help="column name for DEC", default='DEC')
-parser.add_argument(
-    "--IDcol", help="column name for unique ID", default='TARGETID')
 parser.add_argument("--tilefile", help="full path to tile file",
-                    default=os.environ['github_dir']+'observing-program/data/994-hlwas-Feb26.sim.ecsv')
+                    default=os.environ['github_dir']+'Roman_GRS_footprint/data/994-hlwas-Feb26_fixed_orients.sim.ecsv')
 parser.add_argument(
-    "--nran", help="number of randoms to use", default=1, type=int)
-# parser.add_argument("--output", help="full path to output file",default=os.environ['SCRATCH']+'/test4deg2.fits')
+    "--nran", help="number of randoms to use", default=10000, type=int)
 parser.add_argument(
-    "--outroot", help="root directory for output", default=os.environ['SCRATCH'])
+    "--outroot", help="root directory for output", default=os.getcwd())
 parser.add_argument(
-    "--outname", help="additional name for output files", default='_test')
+    "--outname", help="additional name for output files", default='test')
 parser.add_argument("--ramin", help="minimum ra", default=49, type=float)
 parser.add_argument("--ramax", help="maximum ra", default=51, type=float)
 parser.add_argument("--decmin", help="minimum dec", default=-11, type=float)
@@ -109,7 +79,8 @@ parser.add_argument(
     "--decdiff", help="diff in DEC for the repeated values", default=0, type=float)
 parser.add_argument(
     "--decpa", help="add diff in DEC for the flipped roll angles", default=0, type=float)
-
+parser.add_argument(
+    "--par", help="whether to use the parallel processing", action='store_true')
 args = parser.parse_args()
 
 if args.fullsurvey:
@@ -134,34 +105,12 @@ ran4degfn = args.outroot+'/DESIran' + \
     str(args.nran)+str(ram)+str(rax) + \
     str(decm)+str(decx)+'.fits'
 
-if os.path.isfile(ran4degfn):
-    logger.info('reading randoms from '+ran4degfn)
-    data = Table.read(ran4degfn)
-else:
-    for i in range(0, args.nran):
-        input_fn = '/dvs_ro/cfs/cdirs/desi/public/ets/target/catalogs/dr9/0.49.0/randoms/resolve/randoms-allsky-1-' + \
-            str(i)+'.fits'
-        logger.info('reading random file '+input_fn)
-        datai = Table.read(input_fn)
-        if args.IDcol not in list(datai.dtype.names):
-            datai[args.IDcol] = (i*1e10+np.arange(len(datai))).astype(int)
-        datai.keep_columns([args.racol, args.deccol, args.IDcol])
-
-        selra = datai[args.racol] > 180
-        datai[args.racol][selra] -= 360
-
-        sel = datai[args.racol] > ram
-        sel &= datai[args.racol] < rax
-        sel &= datai[args.deccol] > decm
-        sel &= datai[args.deccol] < decx
-
-        datai = datai[sel]
-        data.append(datai)
-        logger.info('processed random file '+input_fn)
-
-    data = Table(np.concatenate(data))
-    logger.info('writing randoms to '+ran4degfn)
-    data.write(ran4degfn)
+data = Table()
+ra, dec = sky_coords.generate_randoms(
+    nran=args.nran, ra_bounds=(ram, rax), dec_bounds=(decm, decx))
+data['RA'] = ra
+data['DEC'] = dec
+data['ID'] = np.arange(len(data)).astype(int)
 logger.info('number of randoms used is '+str(len(data)))
 # logger.info('apply ra,dec bounds, data has been cut from '+str(inputsize)+' to '+str(len(data)))
 
@@ -182,8 +131,8 @@ logger.info('results will be written to '+outdir)
 if not os.path.exists(outdir):
     os.makedirs(outdir)
 
-fstr = 'DESIran'+str(args.nran)+'_lam'+str(minwav)+str(maxwav)
-outf = outdir+'nobs'+fstr+'grid_'+args.optmodver+args.outname+'.ecsv'
+fstr = 'Genran'+str(args.nran)+'_lam'+str(minwav)+str(maxwav)
+outf = outdir+'nobs'+fstr+'grid_'+args.outname+'.ecsv'
 logger.info('will save results to '+outf)
 
 
@@ -268,9 +217,9 @@ for chunk in range(0, Nchunk):
 
     t0 = time()
 
-    ral_tot = data[min_indx:max_indx][args.racol]
-    decl_tot = data[min_indx:max_indx][args.deccol]
-    ran_indices = data[min_indx:max_indx][args.IDcol]
+    ral_tot = data[min_indx:max_indx]['RA']
+    decl_tot = data[min_indx:max_indx]['DEC']
+    ran_indices = data[min_indx:max_indx]['ID']
     logger.info('cut data to chunk '+str(chunk))
 
     def get_idx_tl(tl):
@@ -280,12 +229,7 @@ for chunk in range(0, Nchunk):
         dec0 = tls['DEC'][tl]
         pa = tls['PA'][tl]
         eid = tls['EXPID'][tl]
-        if args.optmodver == 'v06':
-            if args.wficen == 'y':
-                att = attitude(fp.wfi_cen.V2Ref,
-                               fp.wfi_cen.V3Ref, ra0, dec0, pa)
-            else:
-                att = attitude(0, 0, ra0, dec0, pa)
+
         idx = []
         det_bits = []  # for encoding which detectors see each point
         ddec = decl_tot-dec0
@@ -300,67 +244,32 @@ for chunk in range(0, Nchunk):
         ran_indices_tl = ran_indices[sel1deg]
 
         if len(ran_indices_tl) > 0:
-            if args.optmodver == 'v08' or args.optmodver == 'gdps':
-                if args.optmodver == 'v08':
-                    optmod_func = optmod08
-                else:
-                    optmod_func = optmod_gdps
-                if args.coords_ver == 'gdps':
-                    xfpa, yfpa = optmod_func.coords.calculate_fpa_pos(
-                        np.array(ral_tl), np.array(decl_tl), ra0, dec0, pa)
-                if args.coords_ver == 'tan':
-                    xfpa, yfpa = sky_coords.tangent_plane(
-                        np.array(ral_tl), np.array(decl_tl), ra0, dec0, pa)
 
-                for det in dets:
-                    xpixl, ypixl = optmod_func.coords.convert_fpa_to_sca(
-                        xfpa, yfpa, sca=det)
-                    selp = xpixl > -1000
-                    selp &= xpixl < 5088
-                    selp &= ypixl > -1000
-                    selp &= ypixl < 5088
-                    for i in range(0, len(xpixl[selp])):
-                        xfpai = xfpa[selp][i]
-                        yfpai = yfpa[selp][i]
-                        test = 0
+            xfpa, yfpa = sky_coords.tangent_plane(
+                np.array(ral_tl), np.array(decl_tl), ra0, dec0, pa)
 
-                        test = test_det_v08.test_foot(
-                            xfpai, yfpai, det=det, min_lam_4foot=minwav, max_lam_4foot=maxwav)
-                        if test == 1:
-                            idx_det = ran_indices_tl[selp][i]
-                            idx.append(idx_det)
-                            # append the detector number to the list of bits for this point
-                            det_bits.append(int(det))
-            if args.optmodver == 'v06':
-                for det in dets:
-                    pixel_sel, sel = fp.get_pixl_siaf(
-                        ral_tl, decl_tl, att, det)
-                    selp = sel.astype(bool)  # pixels[2].astype(bool)
-                    for i in range(0, len(pixel_sel[0])):
-                        xpix = pixel_sel[0][i]
-                        ypix = pixel_sel[1][i]
+            for det in dets:
+                xpixl, ypixl = test_det.optmod.coords.convert_fpa_to_sca(
+                    xfpa, yfpa, sca=det)
+                selp = xpixl > -1000
+                selp &= xpixl < 5088
+                selp &= ypixl > -1000
+                selp &= ypixl < 5088
+                for i in range(0, len(xpixl[selp])):
+                    xfpai = xfpa[selp][i]
+                    yfpai = yfpa[selp][i]
+                    test = 0
 
-                        test = 0
-                        if xpix > -1000 and xpix < 5088 and ypix > -1000 and ypix < 5088:
-                            test = test_det_v06.test_foot(
-                                xpix, ypix, det=det, min_lam_4foot=minwav, max_lam_4foot=maxwav)
-                            if test == 1:
-                                idx_det = ran_indices_tl[selp][i]
-                                idx.append(idx_det)
-                                # append the detector number to the list of bits for this point
-                                det_bits.append(int(det))
+                    test = test_det.test_foot(
+                        xfpai, yfpai, det=det, min_lam_4foot=minwav, max_lam_4foot=maxwav)
+                    if test == 1:
+                        idx_det = ran_indices_tl[selp][i]
+                        idx.append(idx_det)
+                        # append the detector number to the list of bits for this point
+                        det_bits.append(int(det))
         return idx, det_bits, eid
 
-    par = 'y'
-    if par == 'n':
-        for tl in range(0, len(tls)):
-            idx, det_bits, eid = get_idx_tl(tl)
-            rand_indx.append(idx)
-            det_bits_chunk.append(det_bits)
-            expid_chunk.append(np.ones(len(idx), dtype=int) * eid)
-            print(str(tl)+' completed')
-
-    if par == 'y':
+    if args.par:
         from concurrent.futures import ProcessPoolExecutor
         tl_idx = list(np.arange(len(tls)).astype(int))
         with ProcessPoolExecutor() as executor:
@@ -368,6 +277,14 @@ for chunk in range(0, Nchunk):
                 rand_indx.append(idx)
                 det_bits_chunk.append(det_bits)
                 expid_chunk.append(np.ones(len(idx), dtype=int) * eid)
+    else:
+        for tl in range(0, len(tls)):
+            idx, det_bits, eid = get_idx_tl(tl)
+            rand_indx.append(idx)
+            det_bits_chunk.append(det_bits)
+            expid_chunk.append(np.ones(len(idx), dtype=int) * eid)
+            print(str(tl)+' completed')
+
     logger.info('completed chunk '+str(chunk))
     # logger.info('length of list of ids '+str(len(rand_indx)))
     rand_indx = np.concatenate(rand_indx)
@@ -423,7 +340,7 @@ tout_re = Table()
 tout_re['ID'] = indx_re
 tout_re['SCA'] = det_bits_re
 tout_re['EXPID'] = expid_re
-outfre = outdir+fstr+'repeated_'+args.optmodver+args.outname+'.ecsv'
+outfre = outdir+fstr+'repeated_'+args.outname+'.ecsv'
 logger.info('length of repeated table is '+str(len(tout_re)))
 logger.info('about to write output for repeated points to '+outfre)
 tout_re.write(outfre, overwrite=True)

@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def tangent_plane(ra, dec, pointing_ra, pointing_dec, pointing_pa=0.0, focal_pa=-60.0):
     """Project (ra, dec) onto a tangent plane at a reference pointing.
 
@@ -90,3 +91,36 @@ def tangent_plane(ra, dec, pointing_ra, pointing_dec, pointing_pa=0.0, focal_pa=
 
     # Convert from radians to degrees
     return np.rad2deg(x_out), np.rad2deg(y_out)
+
+
+def generate_randoms(nran=100, ra_bounds=(0, 360), dec_bounds=(-90, 90), random_seed=42):
+    """Generate random RA, Dec, and PA values for testing.
+
+    Parameters
+    ----------
+    nran : int
+        Number of random values to generate.
+    ra_bounds : tuple, optional
+        Minimum and maximum RA values in degrees (default (0, 360)).
+    dec_bounds : tuple, optional
+        Minimum and maximum Dec values in degrees (default (-90, 90)).
+    random_seed : int, optional
+        Seed for the random number generator (default None).
+
+    Returns
+    -------
+    ral, decl : ndarray
+        Random RA (0-360 deg), Dec (-90 to 90 deg).
+    """
+
+    rng = np.random.default_rng(seed=random_seed)
+
+    acosmin = np.cos(np.deg2rad(dec_bounds[1])+np.pi/2.)
+    acosmax = np.cos(np.deg2rad(dec_bounds[0])+np.pi/2.)
+    # distribute randomly in arccos
+    acosl = rng.uniform(acosmin, acosmax, size=nran)
+    ral = rng.uniform(ra_bounds[0], ra_bounds[1], size=nran)
+    decl = np.arccos(acosl)
+    decl = 180/np.pi*(decl-np.pi/2.)
+
+    return ral, decl
