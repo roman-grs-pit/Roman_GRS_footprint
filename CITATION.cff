@@ -1,8 +1,8 @@
 cff-version: 1.2.0
-title: my_package
+title: Roman_GRS_footprint
 message: If you use this software, please cite as below.
 date-released: 2022-03-29
-url: 'https://github.com/roman-grs-pit/roman-grs-pit-python-template'
+url: 'https://github.com/roman-grs-pit/Roman_GRS_footprint'
 version: 0.0.1
 type: software
 authors:

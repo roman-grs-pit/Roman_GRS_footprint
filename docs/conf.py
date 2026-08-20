@@ -17,9 +17,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'my_package'
-copyright = '2026, Author Name'
-author = 'Author Name'
+project = 'Roman_GRS_footprint'
+copyright = '2026, Roman GRS PIT'
+author = 'Roman GRS PIT'
 
 
 # -- General configuration ---------------------------------------------------
@@ -34,7 +34,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_automodapi.automodapi',  # Common in astronomy projects for auto-generating module documentation
 ]
-numpydoc_show_class_members = False
+numdypdoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
