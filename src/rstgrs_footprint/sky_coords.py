@@ -115,12 +115,12 @@ def generate_randoms(nran=100, ra_bounds=(0, 360), dec_bounds=(-90, 90), random_
 
     rng = np.random.default_rng(seed=random_seed)
 
-    acosmin = np.cos(np.deg2rad(dec_bounds[1])+np.pi/2.)
-    acosmax = np.cos(np.deg2rad(dec_bounds[0])+np.pi/2.)
+    acosmin = np.cos(np.deg2rad(dec_bounds[1]) + np.pi / 2.0)
+    acosmax = np.cos(np.deg2rad(dec_bounds[0]) + np.pi / 2.0)
     # distribute randomly in arccos
     acosl = rng.uniform(acosmin, acosmax, size=nran)
     ral = rng.uniform(ra_bounds[0], ra_bounds[1], size=nran)
     decl = np.arccos(acosl)
-    decl = 180/np.pi*(decl-np.pi/2.)
+    decl = 180 / np.pi * (decl - np.pi / 2.0)
 
     return ral, decl
