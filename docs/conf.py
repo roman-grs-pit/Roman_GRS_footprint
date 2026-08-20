@@ -17,9 +17,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'my_package'
-copyright = '2026, Author Name'
-author = 'Author Name'
+project = 'rstgrs_footprint'
+copyright = '2026, Roman GRS PIT'
+author = 'Roman GRS PIT'
 
 
 # -- General configuration ---------------------------------------------------
