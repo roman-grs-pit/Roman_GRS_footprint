@@ -29,7 +29,7 @@ Some functionality in this package requires the `roman_gdps_optical_model` modul
 1. Ensure you have access to the private repository
 2. Install it using:
    ```bash
-   pip install git+https://github.com/roman-grs-pit/roman_gdps_optical_model.git
+   pip install git+https://github.com/RomanSpaceTelescope/GDPS_optical_model.git
    ```
    (Requires appropriate GitHub credentials or authentication token)
 
