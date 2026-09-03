@@ -22,11 +22,11 @@ To install documentation dependencies:
 pip install -e ".[docs]"
 ```
 
-## Optional Dependencies
+## Important Dependency
 
 ### roman_gdps_optical_model
 
-Some functionality in this package requires the `roman_gdps_optical_model` module, which is available in a private GitHub repository. To use features that depend on this module:
+The main functionality in this package requires the `roman_gdps_optical_model` module, which is available in a private GitHub repository. To use features that depend on this module:
 
 1. Ensure you have access to the private repository
 2. Install it using:
