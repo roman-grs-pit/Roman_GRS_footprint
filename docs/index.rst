@@ -1,57 +1,85 @@
-.. Roman_GRS_footprint documentation master file, created by
-   sphinx-quickstart on Tue Mar 22 13:13:41 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Roman GRS footprint utilities
+=============================
 
-Welcome to Roman_GRS_footprint's documentation!
-===============================================
+This package contains the coordinate and detector-footprint tools used to
+translate between sky positions and the Roman focal-plane geometry.
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+The two most important modules are ``rstgrs_footprint.sky_coords`` and
+``rstgrs_footprint.trace_on_det``. The first converts celestial coordinates into
+local tangent-plane/focal-plane coordinates and generates sample sky positions.
+The second checks whether a focal-plane point falls within the active detector
+footprint by tracing it through the Roman optical model.
 
+Overview
+--------
 
-Here is where you can write the documentation for your package.
+``sky_coords.py``
+~~~~~~~~~~~~~~~~~
 
+The functions in ``sky_coords.py`` project RA/Dec values onto a local tangent
+plane centered on a chosen pointing. This is the step that turns a sky position
+into a coordinate system suitable for evaluating Roman field geometry.
 
-Usage
-=====
+``tangent_plane()`` performs a gnomonic projection from sky coordinates to
+focal-plane coordinates, with optional rotation by the pointing position angle
+and the focal-plane orientation. ``generate_randoms()`` creates reproducible
+random RA/Dec samples within a requested sky region for testing and simulation
+work.
 
-.. _installation:
+A typical workflow is to choose a pointing center, transform sky coordinates into
+local focal-plane coordinates, and then examine whether those coordinates fall
+inside the instrument footprint.
 
-Installation
-------------
+.. code-block:: python
 
-To use `rstgrs_footprint` you need to install the package and its dependencies.
+  from rstgrs_footprint import sky_coords
 
+  x, y = sky_coords.tangent_plane(
+      ra=[10.0, 11.0],
+      dec=[-20.0, -20.0],
+      pointing_ra=10.0,
+      pointing_dec=-20.0,
+      pointing_pa=0.0,
+      focal_pa=-60.0,
+  )
 
-.. _code:
+  ra_rand, dec_rand = sky_coords.generate_randoms(
+      nran=100,
+      ra_bounds=(0.0, 360.0),
+      dec_bounds=(-90.0, 90.0),
+      random_seed=42,
+  )
 
-Code
-----
+``trace_on_det.py``
+~~~~~~~~~~~~~~~~~~~
 
-Here is an example of describing the use of your function.
+The functions in ``trace_on_det.py`` evaluate whether a focal-plane point lies
+within an active detector footprint and therefore can be traced through the
+instrument optics.
 
-To add one to a number you can use the ``rstgrs_footprint.add_one()`` function:
+``test_foot()`` takes focal-plane coordinates, detector information, and
+wavelength limits, then asks the Roman optical model to compute the detector
+trace and returns ``1`` if the trace stays inside the detector bounds and ``0``
+otherwise. This is used after converting sky coordinates into focal-plane
+coordinates to answer the practical question: "Is this source on a valid
+detector region for the requested wavelength range?"
 
-.. py:function:: rstgrs_footprint.example.add_one(number)
+.. code-block:: python
 
+  from rstgrs_footprint import sky_coords, trace_on_det
 
-    :param number: Should be integer, floating point number or a string.
+  x, y = sky_coords.tangent_plane(ra=12.5, dec=-19.5, pointing_ra=10.0, pointing_dec=-20.0)
+  on_detector = trace_on_det.test_foot(
+      x,
+      y,
+      det=1,
+      min_lam_4foot=1.0,
+      max_lam_4foot=1.93,
+  )
 
-    If ``number`` is not one of these types, an exception will be raised:
-
-    .. py:exception:: TypeError
-
-   Raised if the input is invalid.
-
-More about how to describe code can be found
-`here <https://www.sphinx-doc.org/en/master/tutorial/describing-code.html>`_
-
-
-..
-  The following section creates an index, a list of modules and a
-  search page.
+Together, these modules provide the core geometry chain needed to sample sky
+positions, transform them into the Roman focal plane, and test whether they land
+within the detector footprint.
 
 Indices and tables
 ==================
@@ -59,9 +87,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-..
- The following will add the signature of the individual functions and pull
- their docstrings.
-
-.. automodapi:: rstgrs_footprint.example
