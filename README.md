@@ -41,3 +41,9 @@ The main functionality in this package requires the `roman_gdps_optical_model` m
    ```
 
 Note: The standard test suite does not require this dependency. It is only needed for specific functionality related to optical modeling and footprint analysis.
+
+## Optional Dependency
+
+### astropy
+
+The example script get_intile_coverage_mkran.py requires astropy for handling tables. One can, e.g., pip install astropy. The test suite does not require astropy.
