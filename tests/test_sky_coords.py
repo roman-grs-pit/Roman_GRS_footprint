@@ -18,7 +18,7 @@ def test_tangent_plane_small_offsets_follow_expected_axes():
     x_north, y_north = tangent_plane(10.0, -19.0, 10.0, -20.0, pointing_pa=0.0, focal_pa=0.0)
 
     assert x_east > 0.0
-    assert np.isclose(y_east, 0.0, atol=1e-12)
+    assert y_east < 0.0
     assert y_north > 0.0
     assert np.isclose(x_north, 0.0, atol=1e-12)
 
@@ -40,9 +40,11 @@ def test_tangent_plane_accepts_array_inputs():
 
 def test_tangent_plane_applies_rotation():
     """A 90 degree PA rotation should swap the projected east/north axes."""
-    x, y = tangent_plane(11.0, -20.0, 10.0, -20.0, pointing_pa=90.0, focal_pa=0.0)
-    assert np.isclose(x, 0.0, atol=1e-12)
-    assert y < 0.0
+    x_unrotated, y_unrotated = tangent_plane(11.0, -20.0, 10.0, -20.0, pointing_pa=0.0, focal_pa=0.0)
+    x_rotated, y_rotated = tangent_plane(11.0, -20.0, 10.0, -20.0, pointing_pa=90.0, focal_pa=0.0)
+
+    assert np.isclose(x_rotated, -y_unrotated, atol=1e-12)
+    assert np.isclose(y_rotated, x_unrotated, atol=1e-12)
 
 
 def test_generate_randoms_is_reproducible_and_within_bounds():
