@@ -6,6 +6,8 @@ This repository contains tools to simulate, use, and analyze the Roman GRS footp
 
 The Sphinx documentation is in `docs/` and is configured to document the `rstgrs_footprint` package.
 
+It is deployed here https://roman-grs-pit.github.io/Roman_GRS_footprint/
+
 ## Development
 
 Install the package in editable mode with:
